@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metal Sales PRO — Мульти-калькулятор (UZS)</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --tg-color: #0088cc;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body.tg {
+            background-color: var(--tg-theme-bg-color, #f1f5f9);
+            color: var(--tg-theme-text-color, #1e293b);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; }
+        body { background-color: var(--bg); color: var(--text-main); padding: 15px; line-height: 1.5; }
+
+        .app-container { max-width: 1250px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.6fr; gap: 20px; align-items: start; }
+        @media (max-width: 1024px) { .app-container { grid-template-columns: 1fr; } }
+
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { font-size: 1.1rem; margin-bottom: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 8px; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+
+        .form-group { margin-bottom: 0.8rem; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+        select, input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; outline: none; transition: 0.2s; -webkit-appearance: none; }
+        select:focus, input:focus { border-color: var(--accent); border-width: 1px; }
+
+        .mode-toggle { display: flex; background: var(--bg); padding: 3px; border-radius: 6px; margin-bottom: 15px; }
+        .mode-btn { flex: 1; border: none; padding: 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: var(--text-muted); }
+        .mode-btn.active { background: white; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        .cart-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        .cart-table th { text-align: left; padding: 10px; border-bottom: 2px solid var(--bg); color: var(--text-muted); white-space: nowrap; }
+        .cart-table td { padding: 10px; border-bottom: 1px solid var(--bg); }
+        .cart-row:hover { background: #f8fafc; }
+        .btn-del { color: var(--danger); cursor: pointer; background: none; border: none; font-size: 1.3rem; padding: 5px; }
+
+        .total-summary { 
+            background: var(--accent); 
+            color: #ffffff; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-top: 20px; 
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+        }
+        .summary-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            font-weight: 500;
+        }
+        .summary-total { 
+            font-size: 1.3rem; 
+            font-weight: 800; 
+            border-top: 1px solid rgba(255, 255, 255, 0.3); 
+            padding-top: 12px; 
+            margin-top: 8px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .profit-label {
+            margin-top: 10px;
+            padding-top: 10px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            border-top: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.95rem; transition: 0.2s; }
+        .btn-add { background: var(--accent); color: white; margin-top: 10px; }
+        .btn-tg { background: var(--tg-color); color: white; margin-top: 15px; }
+        .btn-tg:hover { filter: brightness(1.1); }
+
+        .preview-area { margin-top: 15px; padding: 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; font-size: 0.85rem; white-space: pre-wrap; display: none; border-left: 4px solid var(--success); color: #92400e; }
+        .copy-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; display: none; z-index: 999; backdrop-filter: blur(4px); }
+        
+        .price-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .delivery-card { background: #fefce8; border: 1px solid #fef3c7; border-radius: 10px; padding: 15px; margin-top: 15px; }
+        .delivery-toggle { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+        .delivery-toggle input { width: auto; height: 18px; width: 18px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="column-left">
+        <div class="card">
+            <h2>📦 Добавить позицию</h2>
+            
+            <div class="form-group">
+                <label>Материал</label>
+                <select id="material" onchange="calculate()">
+                    <option value="7850">Сталь (7850 кг/м³)</option>
+                    <option value="7900">Нержавеющая сталь (7900 кг/м³)</option>
+                    <option value="2700">Алюминий (2700 кг/м³)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Тип профиля</label>
+                <select id="metalType" onchange="updateFields()">
+                    <option value="roundBar">Арматура / Круг</option>
+                    <option value="roundPipe">Труба круглая</option>
+                    <option value="squarePipe">Труба профильная</option>
+                    <option value="sheet">Лист / Плита</option>
+                    <option value="angle">Уголок</option>
+                </select>
+            </div>
+
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="modeLen" onclick="setMode('length')">Метры → Вес</button>
+                <button class="mode-btn" id="modeWeight" onclick="setMode('weight')">Вес → Метры</button>
+            </div>
+
+            <div id="dynamicInputs"></div>
+            
+            <div id="extraInputs" style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-top: 10px; border: 1px dashed var(--border);">
+                <div class="form-group" id="mainInputGroup"></div>
+                
+                <div id="pieceCalculations">
+                    <div class="form-group">
+                        <label>Длина 1 штуки (м) — 0 для игнора</label>
+                        <input type="number" id="pieceLength" value="0" step="any" oninput="calculate()">
+                    </div>
+                    <div id="pieceResult" style="font-size: 0.85rem; color: var(--accent); font-weight: 700;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--border);">
+                <div class="form-group">
+                    <label>Единица цены</label>
+                    <select id="priceInputMode" onchange="calculate()">
+                        <option value="ton">За тонну (UZS)</option>
+                        <option value="meter">За метр (UZS)</option>
+                    </select>
+                </div>
+                <div class="price-section">
+                    <div class="form-group">
+                        <label>Цена закупа</label>
+                        <input type="number" id="priceBuy" placeholder="Закуп" oninput="calculate()">
+                    </div>
+                    <div class="form-group">
+                        <label>Цена продажи</label>
+                        <input type="number" id="priceSale" placeholder="Продажа" oninput="calculate()">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-add" onclick="addToCart()">➕ Добавить в корзину</button>
+        </div>
+
+        <div class="delivery-card">
+            <label class="delivery-toggle">
+                <input type="checkbox" id="deliveryActive" onchange="toggleDeliveryUI()"> 🚛 Добавить доставку?
+            </label>
+            <div id="deliveryInputs" style="display: none;">
+                <div class="form-group">
+                    <label>Тип расчета</label>
+                    <select id="deliveryType" onchange="updateCartUI()">
+                        <option value="fix">Фиксированная сумма</option>
+                        <option value="ton">За каждую тонну</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Стоимость доставки (UZS)</label>
+                    <input type="number" id="deliveryCost" value="0" oninput="updateCartUI()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="column-right">
+        <div class="card">
+            <h2>🛒 Состав заказа</h2>
+            <div style="overflow-x: auto;">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Шт</th>
+                            <th>Кол-во</th>
+                            <th>Вес (т)</th>
+                            <th>Сумма (сум)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody"></tbody>
+                </table>
+            </div>
+
+            <div class="total-summary">
+                <div class="summary-row">
+                    <span>Общий вес:</span>
+                    <span id="totalWeight">0.000 т</span>
+                </div>
+                <div class="summary-row">
+                    <span>Позиций:</span>
+                    <span id="totalItems">0</span>
+                </div>
+                <div class="summary-row" id="deliveryRow" style="display: none;">
+                    <span>Доставка:</span>
+                    <span id="summaryDelivery">0 сум</span>
+                </div>
+                <div class="summary-total">
+                    <span>Итого к оплате:</span>
+                    <span id="totalPrice">0 сум</span>
+                </div>
+                <div class="summary-row profit-label">
+                    <span>Прибыль компании:</span>
+                    <span id="totalProfit">0 сум</span>
+                </div>
+            </div>
+
+            <button class="btn btn-tg" onclick="generateMsg('tg')">✈️ Сформировать для Telegram</button>
+            
+            <div id="msgPreview" class="preview-area"></div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="copy-toast">Текст скопирован в буфер!</div>
+
+<script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+        tg.expand();
+        tg.ready();
+        document.body.classList.add('tg');
+    }
+
+    let currentMode = 'length';
+    let cart = [];
+
+    const configs = {
+        roundBar: { label: 'Арматура', fields: [{id:'d', label:'Диаметр (мм)'}], calcArea: (f) => Math.PI * Math.pow(f.d/2, 2) },
+        roundPipe: { label: 'Труба круглая', fields: [{id:'d', label:'Диаметр (мм)'}, {id:'w', label:'Стенка (мм)'}], calcArea: (f) => Math.PI * (Math.pow(f.d/2, 2) - Math.pow(f.d/2 - f.w, 2)) },
+        squarePipe: { label: 'Труба проф.', fields: [{id:'h', label:'Высота (мм)'}, {id:'w', label:'Ширина (мм)'}, {id:'s', label:'Стенка (мм)'}], calcArea: (f) => (f.h * f.w) - ((f.h - 2*f.s) * (f.w - 2*f.s)) },
+        sheet: { label: 'Лист', fields: [{id:'t', label:'Толщина (мм)'}, {id:'w', label:'Ширина (мм)'}, {id:'l_s', label:'Длина (мм)'}], calcArea: (f) => f.t * f.w, isSheet: true },
+        angle: { label: 'Уголок', fields: [{id:'w', label:'Полка (мм)'}, {id:'t', label:'Толщина (мм)'}], calcArea: (f) => (f.w * f.t) + ((f.w - f.t) * f.t) }
+    };
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('modeLen').classList.toggle('active', mode === 'length');
+        document.getElementById('modeWeight').classList.toggle('active', mode === 'weight');
+        updateFields();
+    }
+
+    function toggleDeliveryUI() {
+        const active = document.getElementById('deliveryActive').checked;
+        document.getElementById('deliveryInputs').style.display = active ? 'block' : 'none';
+        updateCartUI();
+    }
+
+    function updateFields() {
+        const type = document.getElementById('metalType').value;
+        const container = document.getElementById('dynamicInputs');
+        const mainInput = document.getElementById('mainInputGroup');
+        const pieceSection = document.getElementById('pieceCalculations');
+        
+        container.innerHTML = '';
+        configs[type].fields.forEach(f => {
+            container.innerHTML += `<div class="form-group"><label>${f.label}</label><input type="number" id="${f.id}" oninput="calculate()"></div>`;
+        });
+
+        if (currentMode === 'length') {
+            mainInput.innerHTML = `<label>Общая длина (метры)</label><input type="number" id="valInput" oninput="calculate()">`;
+            pieceSection.style.display = configs[type].isSheet ? "none" : "block";
+        } else {
+            mainInput.innerHTML = `<label>Общий вес (тонны)</label><input type="number" id="valInput" oninput="calculate()">`;
+            pieceSection.style.display = "none";
+        }
+        calculate();
+    }
+
+    function formatUZS(val) {
+        return Math.round(val).toLocaleString('ru-RU') + ' сум';
+    }
+
+    function calculate() {
+        const type = document.getElementById('metalType').value;
+        const density = parseFloat(document.getElementById('material').value);
+        const inputVal = parseFloat(document.getElementById('valInput')?.value) || 0;
+        const pLen = parseFloat(document.getElementById('pieceLength')?.value) || 0;
+        
+        const fields = {};
+        configs[type].fields.forEach(f => fields[f.id] = parseFloat(document.getElementById(f.id)?.value) || 0);
+
+        const areaM2 = configs[type].calcArea(fields) / 1000000;
+        const weightPerMeter = areaM2 * density;
+        
+        let resultText = "";
+        if (currentMode === 'length' && pLen > 0) {
+            const qty = Math.ceil(inputVal / pLen);
+            resultText = `📦 Итого: ${qty} шт. по ${pLen}м (всего ${(qty * pLen).toFixed(2)}м)`;
+        }
+        document.getElementById('pieceResult').innerText = resultText;
+        return { weightPerMeter, typeLabel: configs[type].label, fields };
+    }
+
+    function addToCart() {
+        const calc = calculate();
+        const type = document.getElementById('metalType').value;
+        const inputVal = parseFloat(document.getElementById('valInput')?.value) || 0;
+        const pLen = parseFloat(document.getElementById('pieceLength')?.value) || 0;
+        const priceMode = document.getElementById('priceInputMode').value;
+        const priceBuy = parseFloat(document.getElementById('priceBuy').value) || 0;
+        const priceSale = parseFloat(document.getElementById('priceSale').value) || 0;
+
+        if (inputVal <= 0 || priceSale <= 0) return;
+
+        let finalMeters = inputVal;
+        let pieces = 0;
+        let weightTons = 0;
+
+        if (currentMode === 'length') {
+            if (pLen > 0 && !configs[type].isSheet) {
+                pieces = Math.ceil(inputVal / pLen);
+                finalMeters = pieces * pLen;
+            }
+            weightTons = (finalMeters * calc.weightPerMeter) / 1000;
+        } else {
+            weightTons = inputVal;
+            finalMeters = calc.weightPerMeter > 0 ? (inputVal * 1000) / calc.weightPerMeter : 0;
+            if (pLen > 0 && !configs[type].isSheet) {
+                pieces = Math.ceil(finalMeters / pLen);
+            }
+        }
+
+        let totalBuy = (priceMode === 'ton') ? (weightTons * priceBuy) : (finalMeters * priceBuy);
+        let totalSale = (priceMode === 'ton') ? (weightTons * priceSale) : (finalMeters * priceSale);
+
+        const sizeInfo = Object.values(calc.fields)[0];
+        const name = `${calc.typeLabel} ${sizeInfo}мм`;
+
+        cart.push({
+            name,
+            meters: finalMeters.toFixed(2),
+            pieces: pieces,
+            weight: weightTons,
+            buyPrice: totalBuy,
+            salePrice: totalSale
+        });
+
+        updateCartUI();
+        document.getElementById('valInput').value = '';
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    function updateCartUI() {
+        const body = document.getElementById('cartBody');
+        body.innerHTML = '';
+        
+        let totalW = 0;
+        let totalSaleAll = 0;
+        let totalBuyAll = 0;
+
+        cart.forEach((item, index) => {
+            totalW += item.weight;
+            totalSaleAll += item.salePrice;
+            totalBuyAll += item.buyPrice;
+
+            body.innerHTML += `
+                <tr class="cart-row">
+                    <td>${item.name}</td>
+                    <td>${item.pieces > 0 ? item.pieces : '-'}</td>
+                    <td>${item.meters}м</td>
+                    <td>${item.weight.toFixed(3)}</td>
+                    <td>${formatUZS(item.salePrice)}</td>
+                    <td><button class="btn-del" onclick="removeFromCart(${index})">×</button></td>
+                </tr>
+            `;
+        });
+
+        const delActive = document.getElementById('deliveryActive').checked;
+        const delType = document.getElementById('deliveryType').value;
+        const delCostInput = parseFloat(document.getElementById('deliveryCost').value) || 0;
+        let finalDelCost = 0;
+
+        if (delActive) {
+            finalDelCost = (delType === 'fix') ? delCostInput : (delCostInput * totalW);
+            document.getElementById('deliveryRow').style.display = 'flex';
+            document.getElementById('summaryDelivery').innerText = formatUZS(finalDelCost);
+        } else {
+            document.getElementById('deliveryRow').style.display = 'none';
+        }
+
+        document.getElementById('totalWeight').innerText = totalW.toFixed(3) + ' т';
+        document.getElementById('totalItems').innerText = cart.length;
+        document.getElementById('totalPrice').innerText = formatUZS(totalSaleAll + finalDelCost);
+        document.getElementById('totalProfit').innerText = formatUZS(totalSaleAll - totalBuyAll);
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        updateCartUI();
+        if (tg) tg.HapticFeedback.impactOccurred('medium');
+    }
+
+    function generateMsg(platform) {
+        if (cart.length === 0) return;
+        const totalW = document.getElementById('totalWeight').innerText;
+        const totalPrice = document.getElementById('totalPrice').innerText;
+        const delActive = document.getElementById('deliveryActive').checked;
+        const delSum = document.getElementById('summaryDelivery').innerText;
+
+        let itemsText = cart.map(i => {
+            const price = formatUZS(i.salePrice);
+            const qtyText = i.pieces > 0 ? `${i.pieces} шт / ${i.meters} м` : `${i.meters} м`;
+            return `- ${i.name}: ${qtyText} (${i.weight.toFixed(3)} т) — ${price}`;
+        }).join('\n');
+
+        let delText = delActive ? `🚚 Доставка: ${delSum}\n` : "";
+
+        const text = `🛒 *Tijorat taklifi*\n\n${itemsText}\n\n${delText}⚖️ *Jami vazn:* ${totalW}\n💰 *Jami summa:* ${totalPrice}\n\n🚛 Yetkazib berish: 1-2 kun\n⚠️ Narx bugun uchun amal qiladi.`;
+
+        const preview = document.getElementById('msgPreview');
+        preview.innerText = text;
+        preview.style.display = 'block';
+
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+
+        const toast = document.getElementById('toast');
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 2000);
+        
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    window.onload = updateFields;
+</script>
+
+</body>
+</html>
